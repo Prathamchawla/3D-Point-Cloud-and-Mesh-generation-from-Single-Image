@@ -1,7 +1,8 @@
-torch
-opencv-python
-pillow
-transformers 
-open3d
-plotly
-matplotlib
+torch==2.5.1
+opencv-python==4.10.0.84
+pillow==11.0.0
+transformers==4.46.3
+plotly==5.8.0
+streamlit==1.17.0
+matplotlib==3.7.1
+numpy==1.23.5
