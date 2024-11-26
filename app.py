@@ -1,13 +1,12 @@
 import streamlit as st
-import torch
 import numpy as np
+import plotly.graph_objects as go
+import torch
+from transformers import GLPNImageProcessor, GLPNForDepthEstimation
 import cv2
 from PIL import Image
-from transformers import GLPNImageProcessor, GLPNForDepthEstimation
-import plotly.graph_objects as go
-import matplotlib.pyplot as plt
 
-# Load the pre-trained model and feature extractor
+# Load pre-trained model
 feature_extractor = GLPNImageProcessor.from_pretrained("vinvino02/glpn-nyu")
 model = GLPNForDepthEstimation.from_pretrained("vinvino02/glpn-nyu")
 
@@ -33,37 +32,23 @@ def process_image(image):
 
     return image_rgb, output
 
-def generate_point_cloud(depth_output):
-    # Convert depth output to 3D point cloud (X, Y, Z)
-    h, w = depth_output.shape
-    x, y = np.meshgrid(np.arange(w), np.arange(h))
-    z = depth_output
+def generate_point_cloud(image_rgb, depth_output):
+    # Convert image to 3D point cloud (X, Y, Z) coordinates
+    height, width, _ = image_rgb.shape
+    x = np.arange(0, width, 1)
+    y = np.arange(0, height, 1)
+    X, Y = np.meshgrid(x, y)
+    Z = depth_output
 
-    # Stack points into (X, Y, Z) coordinates
-    points = np.stack((x.flatten(), y.flatten(), z.flatten()), axis=-1)
-    
-    return points
+    # Flatten the arrays
+    X = X.flatten()
+    Y = Y.flatten()
+    Z = Z.flatten()
 
-def plotly_point_cloud(points):
-    # Convert the point cloud into a Plotly 3D scatter plot
-    fig = go.Figure(data=[go.Scatter3d(
-        x=points[:, 0],
-        y=points[:, 1],
-        z=points[:, 2],
-        mode='markers',
-        marker=dict(size=2, color=points[:, 2], colorscale='Viridis', opacity=0.8)
-    )])
-
-    fig.update_layout(scene=dict(
-        xaxis_title='X',
-        yaxis_title='Y',
-        zaxis_title='Z'
-    ))
-
-    return fig
+    return X, Y, Z
 
 # Streamlit UI
-st.title("3D Point Cloud and Mesh Generation from a Single Image")
+st.title("3D Point Cloud Generation from a Single Image")
 
 # Upload image
 uploaded_image = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg", "webp"])
@@ -78,23 +63,23 @@ if uploaded_image:
     # Generate depth map and point cloud
     image_rgb, depth_output = process_image(image)
     
-    # Display depth image
-    st.subheader("Depth Image")
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.imshow(depth_output, cmap='plasma')
-    ax.axis('off')
-    st.pyplot(fig)
-    
     # Generate point cloud
-    points = generate_point_cloud(depth_output)
+    X, Y, Z = generate_point_cloud(image_rgb, depth_output)
     
-    # Show point cloud using Plotly
+    # Plot 3D point cloud using Plotly
     st.subheader("3D Point Cloud")
-    st.write("Here is the 3D point cloud generated from the depth map.")
-    point_cloud_fig = plotly_point_cloud(points)
-    st.plotly_chart(point_cloud_fig)
-    
-    # Optional: Generate mesh if required using Open3D
-    # mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd_filtered, alpha=0.03)
-    # mesh_fig = plotly_point_cloud(mesh) # If you need to plot the mesh as well
-    # st.plotly_chart(mesh_fig)
+    trace = go.Scatter3d(
+        x=X, y=Y, z=Z,
+        mode='markers',
+        marker=dict(size=2, color=Z, colorscale='Viridis', opacity=0.8)
+    )
+    layout = go.Layout(
+        title="3D Point Cloud",
+        scene=dict(
+            xaxis_title="X",
+            yaxis_title="Y",
+            zaxis_title="Z"
+        )
+    )
+    fig = go.Figure(data=[trace], layout=layout)
+    st.plotly_chart(fig)
