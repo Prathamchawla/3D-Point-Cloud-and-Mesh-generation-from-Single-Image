@@ -6,3 +6,6 @@ plotly==5.8.0
 streamlit==1.17.0
 matplotlib==3.7.1
 numpy==1.23.5
+setuptools>=56.0.0
+wheel>=0.36.0
+
